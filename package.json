@@ -1,0 +1,39 @@
+{
+  "$schema": "./.vscode/schemas/package.schema.json",
+  "name": "effect-vercel",
+  "version": "1.0.0",
+  "description": "Effect-native TypeScript SDKs for Vercel services.",
+  "keywords": [
+    "effect",
+    "sdk",
+    "typescript",
+    "vercel"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Santiago Galán",
+    "email": "santiago@panorama.industries",
+    "url": "https://sgalanb.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panorama-industries/effect-vercel"
+  },
+  "type": "module",
+  "scripts": {},
+  "devDependencies": {
+    "@oxlint/plugins": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0"
+}
