@@ -1,0 +1,60 @@
+# npm trusted publishing trusts one workflow file per package, so releases and snapshots both
+# publish from this file. pnpm publishes with OIDC first and falls back to the optional `NPM_TOKEN`
+# secret, which is only needed before trusted publishing is configured on npm.
+#
+# - Push to main: open or update the "Version Packages" PR; once it is merged, publish to npm with
+#   the `latest` tag, push git tags and create GitHub releases.
+# - Manual run (Actions → Release → Run workflow, pick a branch): publish that branch's pending
+#   changesets as `x.y.z-snapshot-<datetime>` with the `snapshot` tag. No commits or git tags.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v2.1.2
+        with:
+          version-script: pnpm run version
+          publish-script: pnpm run release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  snapshot:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run release:snapshot
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

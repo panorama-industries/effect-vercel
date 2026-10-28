@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/panorama-industries/effect-vercel"
+    "url": "git+https://github.com/panorama-industries/effect-vercel.git"
   },
   "type": "module",
   "scripts": {
@@ -28,11 +28,14 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
+    "check:packages": "pnpm build && pnpm -r exec publint --strict",
     "changeset": "changeset",
-    "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "version": "changeset version && node scripts/sync-versions.mjs && oxfmt",
+    "release": "pnpm build && changeset publish",
+    "release:snapshot": "changeset version --snapshot snapshot && node scripts/sync-versions.mjs && pnpm build && changeset publish --tag snapshot --no-git-tag"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
     "@effect/vitest": "catalog:",
     "@oxlint/plugins": "catalog:",
@@ -41,6 +44,7 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

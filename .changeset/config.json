@@ -1,11 +1,15 @@
 {
   "$schema": "../.vscode/schemas/changeset-config.schema.json",
-  "changelog": "@changesets/cli/changelog",
+  "changelog": ["@changesets/changelog-github", { "repo": "panorama-industries/effect-vercel" }],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@panorama-industries/effect-vercel-*"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [],
+  "snapshot": {
+    "useCalculatedVersion": true,
+    "prereleaseTemplate": "{tag}-{datetime}"
+  }
 }
