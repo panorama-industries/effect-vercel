@@ -1,108 +1,73 @@
 ## Effect Service Modules
 
-### Service Constructor Locality
+### Contracts and Implementations
 
-Do not pass dependency-bearing constructor functions through application code or import them into
-runtime composition modules. In an Effect project, an exported free function named
-`make<CapabilityName>` is reserved for constructing the contextual service declared in the same
-capability module.
+Each package splits its Effect services into two folders under `src/`:
 
-The owning service module may use its constructor to define dependency-preserving and ready Layers.
-All non-test consumers import those Layers, yield the contextual service, and allow requirements to
-propagate to the composition root. They must not import or invoke the constructor directly. Only
-files matching the repository's test conventions (`*.test.*` and `*.spec.*`) may import an exported
-service constructor, and only when focused verification genuinely needs to exercise construction
-without the ready Layer.
+- `contracts/`: one file per capability, named for it (`queue-api.ts`). It holds the contextual
+  service class plus the schemas, branded types, and tagged errors that appear in its interface.
+  Contracts declare _what_ a service does and import no implementation code.
+- `implementation/`: one file per contract, with the same name plus a `-live` suffix
+  (`queue-api-live.ts`). It exports the Layer that implements the contract, named
+  `<CapabilityName>Live`.
 
-```ts
-// issue-service.ts
-export const makeIssueService = Effect.gen(function* () {
-  const issueStore = yield* IssueStore;
-  return IssueService.of({/* operations */});
-});
-
-export const issueServiceLayerWithoutDependencies = Layer.effect(IssueService, makeIssueService);
-
-// Runtime modules import the Layer and yield IssueService. They never import makeIssueService.
+```text
+packages/queue/src/
+  contracts/
+    queue-api.ts           # QueueApi service, its schemas and errors
+    queue-producer.ts
+  implementation/
+    queue-api-live.ts      # QueueApiLive
+    queue-api-live.test.ts
+    queue-producer-live.ts
+  index.ts
 ```
 
-Do not introduce exported `make<X>` functions for dependency bundles, runtime registries, test
-harness capabilities, or alternate manual dependency injection. Model them as contextual services
-with Layers when they own capabilities or runtime state; keep genuinely pure construction local to
-its owning module or expose a domain-named operation that describes the value being derived rather
-than a generic constructor seam.
+Declare the service shape inline on the `Context.Service` class; do not export a separate `I<Name>`
+interface. Use the key `@effect-vercel/<package>/<CapabilityName>`.
 
-Enforce this with a project lint rule that rejects project-local imports whose imported name matches
-`make[A-Z]` unless the importing file matches `*.test.*` or `*.spec.*`. The diagnostic should direct
-runtime callers to import the owning Layer and yield the contextual service. Library imports and
-schema-owned static constructors such as `AccountName.make` are outside this rule.
+```ts
+// contracts/queue-api.ts
+/** Sends and receives messages through Vercel Queues. */
+export class QueueApi extends Context.Service<
+  QueueApi,
+  {
+    readonly send: (
+      topic: TopicName,
+      payload: unknown,
+    ) => Effect.Effect<MessageId, QueueSendFailed>;
+  }
+>()("@effect-vercel/queue/QueueApi") {}
+```
 
-Put each new Effect service in a file named for its capability. Keep the service declaration and
-its construction in this order:
+Dependencies are yielded inside the Layer and stay in its requirements, so callers and
+composition roots provide them with `Layer.provide`.
 
-1. The service shape interface.
-2. The contextual service class.
-3. The service constructor.
-4. The Layer that preserves dependency requirements.
-5. The ready production Layer that provides production dependencies.
-6. The ready test Layer that provides behaviorally faithful test dependencies.
+```ts
+// implementation/queue-api-live.ts
+/** Implements QueueApi over HTTP; requires an HttpClient. */
+export const QueueApiLive = Layer.effect(
+  QueueApi,
+  Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient;
 
-Every exported symbol must include the capability name rather than relying on its file path for
-context. Do not use `Tag` in symbol names. Name constructors `make<CapabilityName>` and use camel
-case for Layer values.
+    const send = Effect.fn("QueueApi.send")(function* (topic: TopicName, payload: unknown) {
+      // ...
+    });
+
+    return QueueApi.of({ send });
+  }),
+);
+```
 
 A contextual service name does not have to end in `Service`. Use the shortest natural name for the
-stable capability. `IssueService` is a sensible default when `Service` honestly describes a broad,
-cohesive capability; a more specific established name such as `IssueStore` is preferable when it
-better describes the authority. Apply the same chosen capability name consistently to its interface,
-constructor, and Layers—for example, `IIssueStore`, `makeIssueStore`, `issueStoreLayer`, and
-`issueStoreTestLayer`.
+stable capability, and do not use `Tag` in symbol names.
 
-```ts
-/** Defines the Issue service capability exposed to application callers. */
-export interface IIssueService {
-  readonly findIssue: (id: IssueId) => Effect.Effect<Issue, IssueNotFound>;
-}
-
-/** Provides the contextual Issue service capability. */
-export class IssueService extends Context.Service<IssueService, IIssueService>()(
-  "@app/IssueService",
-) {}
-
-/** Constructs the Issue service while preserving its dependency requirements. */
-export const makeIssueService = Effect.gen(function* () {
-  const issueStore = yield* IssueStore;
-
-  return IssueService.of({
-    findIssue: Effect.fn("IssueService.findIssue")(function* (id: IssueId) {
-      return yield* issueStore.findIssue(id);
-    }),
-  });
-});
-
-/** Provides the Issue service without selecting dependency implementations. */
-export const issueServiceLayerWithoutDependencies = Layer.effect(IssueService, makeIssueService);
-
-/** Provides the Issue service with its production dependencies. */
-export const issueServiceLayer = issueServiceLayerWithoutDependencies.pipe(
-  Layer.provide(issueStoreLayer),
-);
-
-/** Provides the Issue service with behaviorally faithful test dependencies. */
-export const issueServiceTestLayer = issueServiceLayerWithoutDependencies.pipe(
-  Layer.provide(issueStoreTestLayer),
-);
-```
-
-`<capabilityName>LayerWithoutDependencies` does not mean that the service has no dependencies. It
-means the Layer leaves those requirements visible so callers or composition roots can provide
-them. `<capabilityName>Layer` selects the complete production dependency graph. If the service has
-no production dependencies, still export both canonical names and let the production Layer
-reference the dependency-preserving Layer.
-
-A `<capabilityName>TestLayer` must cross the same service interface as production and use complete,
-behaviorally honest test implementations. Do not add partial mocks or weaken production behavior
-solely to make the test Layer convenient.
+Code that uses a service imports it from `contracts/` and yields it. Only composition roots, the
+package entry point, and tests import from `implementation/`. Tests build the Layer graph they need
+by providing `<CapabilityName>Live` with test dependencies, or provide a test implementation of the
+contract that crosses the same service interface with behaviorally honest behavior. Do not add
+partial mocks or weaken production behavior to make tests convenient.
 
 ## Comments and JSDoc
 

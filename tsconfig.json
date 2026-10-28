@@ -1,0 +1,5 @@
+{
+  "$schema": "./.vscode/schemas/tsconfig.schema.json",
+  "files": [],
+  "references": [{ "path": "packages/core" }, { "path": "packages/queue" }]
+}

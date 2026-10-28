@@ -1,12 +1,11 @@
 {
-    // Formatting
-    "editor.defaultFormatter": "oxc.oxc-vscode",
-    "editor.formatOnSave": true,
-    "css.lint.unknownAtRules": "ignore",
-    // Use workspace TS version
-    "js/ts.tsdk.promptToUseWorkspaceVersion": true,
-    // Effect LSP via TypeScript-Go (@effect/tsgo patches the tsgo binary in node_modules/typescript)
-    "js/ts.tsdk.path": "node_modules/typescript",
-    "js/ts.experimental.useTsgo": true,
-  }
-  
+  // Formatting
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "css.lint.unknownAtRules": "ignore",
+  // Use workspace TS version
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  // Effect LSP via TypeScript-Go (@effect/tsgo patches the tsgo binary in node_modules/typescript)
+  "js/ts.tsdk.path": "node_modules/typescript",
+  "js/ts.experimental.useTsgo": true
+}

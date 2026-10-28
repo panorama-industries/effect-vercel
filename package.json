@@ -1,7 +1,7 @@
 {
   "$schema": "./.vscode/schemas/package.schema.json",
   "name": "effect-vercel",
-  "version": "1.0.0",
+  "private": true,
   "description": "Effect-native TypeScript SDKs for Vercel services.",
   "keywords": [
     "effect",
@@ -20,13 +20,29 @@
     "url": "https://github.com/panorama-industries/effect-vercel"
   },
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
   "devDependencies": {
+    "@changesets/cli": "catalog:",
+    "@effect/vitest": "catalog:",
     "@oxlint/plugins": "catalog:",
+    "@types/node": "catalog:",
+    "effect": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "packageManager": {
