@@ -19,6 +19,10 @@ export const sharedConfig = defineConfig({
         replacement: source("./packages/core/src/index.ts"),
       },
       {
+        find: /^@panorama-industries\/effect-vercel-queue\/testing$/,
+        replacement: source("./packages/queue/src/testing/index.ts"),
+      },
+      {
         find: /^@panorama-industries\/effect-vercel-queue$/,
         replacement: source("./packages/queue/src/index.ts"),
       },

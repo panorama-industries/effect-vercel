@@ -173,6 +173,15 @@ export class ConsumerRegistryNotConfigured extends Schema.TaggedError<ConsumerRe
   },
 ) {}
 
+/** A batch send had no entries or more than the queue's limit of 100. */
+export class BatchSizeOutOfRange extends Schema.TaggedError<BatchSizeOutOfRange>()(
+  "BatchSizeOutOfRange",
+  {
+    size: Schema.Int,
+    maximum: Schema.Int,
+  },
+) {}
+
 /** A payload did not match its topic's schema when it was published. */
 export class PayloadEncodeFailed extends Schema.TaggedError<PayloadEncodeFailed>()(
   "PayloadEncodeFailed",

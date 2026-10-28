@@ -1,6 +1,7 @@
 import { defineConfig } from "oxfmt";
 
 export default defineConfig({
+  ignorePatterns: [".vscode/schemas/**"],
   sortTailwindcss: true,
   sortImports: {
     groups: [

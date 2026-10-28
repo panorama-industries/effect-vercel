@@ -3,7 +3,12 @@ import type { Effect } from "effect";
 import { Context, Data } from "effect";
 
 import type { ConsumeOptions, MessageHandler } from "./message-handling.ts";
-import type { QueueRequestError, ReceiveByIdOptions, ReceiveOptions } from "./queue-api.ts";
+import type {
+  QueueLeaseError,
+  QueueRequestError,
+  ReceiveByIdOptions,
+  ReceiveOptions,
+} from "./queue-api.ts";
 import type { ConsumerGroupName, MessageCorrupted, MessageId } from "./queue-domain.ts";
 import type { Topic } from "./topic.ts";
 
@@ -26,7 +31,14 @@ export const ReceiveOutcome = Data.taggedEnum<ReceiveOutcome>();
 
 /** Options for one poll: lease options plus how to handle the leased messages. */
 export type PollOptions<E, R> = ConsumeOptions<E, R> &
-  Pick<ReceiveOptions, "limit" | "cursorFallback" | "region">;
+  Pick<ReceiveOptions, "limit" | "cursorFallback" | "region"> & {
+    /**
+     * How many leased messages are handled at once. Default: `"unbounded"`. Messages waiting their
+     * turn keep their leases renewed, so a lower value never lets a lease expire. In a function,
+     * keep `limit × handler time / concurrency` well under `maxDuration`.
+     */
+    readonly concurrency?: number | "unbounded";
+  };
 
 /** Options for polling one message by identifier. */
 export type PollByIdOptions<E, R> = ConsumeOptions<E, R> & Pick<ReceiveByIdOptions, "region">;
@@ -39,16 +51,18 @@ export class QueuePoller extends Context.Service<
   QueuePoller,
   {
     /**
-     * Lease up to `limit` messages and handle them concurrently.
+     * Lease up to `limit` messages and handle them, concurrently by default.
      *
-     * @returns The outcome, or the handler's error when the error policy answered `Fail`.
+     * @returns The outcome, or the handler's error when the error policy answered `Fail`. Also
+     *   fails with `MessageNotFound` or `MessageNotAvailable` when a lease was lost before the
+     *   message could be acknowledged.
      */
     readonly receive: <A, I, E, R, R2 = never>(
       topic: Topic<A, I>,
       consumerGroup: ConsumerGroupName,
       handle: MessageHandler<A, E, R>,
       options?: PollOptions<E, R2>,
-    ) => Effect.Effect<ReceiveOutcome, E | QueueRequestError | MessageCorrupted, R | R2>;
+    ) => Effect.Effect<ReceiveOutcome, E | QueueLeaseError | MessageCorrupted, R | R2>;
 
     /** Lease one message by identifier and handle it. */
     readonly receiveById: <A, I, E, R, R2 = never>(

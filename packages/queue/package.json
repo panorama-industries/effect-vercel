@@ -38,6 +38,11 @@
       "effect-vercel-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "effect-vercel-source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
     }
   },
   "publishConfig": {
@@ -48,6 +53,7 @@
     "@panorama-industries/effect-vercel-core": "workspace:^"
   },
   "devDependencies": {
+    "@vercel/queue": "catalog:",
     "effect": "catalog:"
   },
   "peerDependencies": {

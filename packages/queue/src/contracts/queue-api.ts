@@ -4,6 +4,7 @@ import type { Array, Duration, Effect, Option } from "effect";
 import { Context, Data, Schema } from "effect";
 
 import type {
+  BatchSizeOutOfRange,
   ConcurrencyKey,
   ConsumerDiscoveryFailed,
   ConsumerGroupName,
@@ -119,6 +120,9 @@ export type QueueRequestError = VercelApiError | ConsumerRegistryNotConfigured;
 /** Failures of publishing. */
 export type QueueSendError = QueueRequestError | ConsumerDiscoveryFailed;
 
+/** Failures of publishing a batch. */
+export type QueueSendBatchError = QueueSendError | BatchSizeOutOfRange;
+
 /** Failures of leasing a specific message. */
 export type QueueReceiveByIdError =
   | QueueRequestError
@@ -149,7 +153,7 @@ export class QueueApi extends Context.Service<
     readonly sendBatch: (
       topic: TopicName,
       messages: Array.NonEmptyReadonlyArray<OutgoingMessage>,
-    ) => Effect.Effect<ReadonlyArray<BatchSendResult>, QueueSendError>;
+    ) => Effect.Effect<ReadonlyArray<BatchSendResult>, QueueSendBatchError>;
 
     /**
      * Lease the next available messages of a consumer group. An empty array means the queue had

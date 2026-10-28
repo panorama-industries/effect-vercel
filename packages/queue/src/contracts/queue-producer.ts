@@ -2,7 +2,13 @@ import type { Array, Effect } from "effect";
 
 import { Context } from "effect";
 
-import type { BatchSendResult, PublishOptions, QueueSendError, SendResult } from "./queue-api.ts";
+import type {
+  BatchSendResult,
+  PublishOptions,
+  QueueSendBatchError,
+  QueueSendError,
+  SendResult,
+} from "./queue-api.ts";
 import type { PayloadEncodeFailed } from "./queue-domain.ts";
 import type { Topic } from "./topic.ts";
 
@@ -29,6 +35,6 @@ export class QueueProducer extends Context.Service<
     readonly sendBatch: <A, I>(
       topic: Topic<A, I>,
       entries: Array.NonEmptyReadonlyArray<BatchEntry<A>>,
-    ) => Effect.Effect<ReadonlyArray<BatchSendResult>, QueueSendError | PayloadEncodeFailed>;
+    ) => Effect.Effect<ReadonlyArray<BatchSendResult>, QueueSendBatchError | PayloadEncodeFailed>;
   }
 >()("@effect-vercel/queue/QueueProducer") {}
