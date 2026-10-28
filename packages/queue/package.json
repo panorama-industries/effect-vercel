@@ -1,7 +1,7 @@
 {
   "$schema": "../../.vscode/schemas/package.schema.json",
   "name": "@panorama-industries/effect-vercel-queue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Effect-native client for Vercel Queues: typed topics, producers, push and poll consumers.",
   "keywords": [
     "effect",

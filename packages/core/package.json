@@ -1,7 +1,7 @@
 {
   "$schema": "../../.vscode/schemas/package.schema.json",
   "name": "@panorama-industries/effect-vercel-core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Shared Effect building blocks for Vercel service SDKs: environment, OIDC credentials, API client, errors and test utilities.",
   "keywords": [
     "effect",
