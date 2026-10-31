@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Duration, Effect, Exit, Layer, Option, Predicate } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
+import { FetchHttpClient, Headers, HttpClient, HttpClientRequest } from "effect/http";
 import { TestClock } from "effect/testing";
 
 import type { VercelApiError } from "../contracts/vercel-api-error.ts";
@@ -10,6 +10,7 @@ import { TestHttpServer, TestHttpServerLive } from "../testing/test-http-server.
 import {
   vercelApiErrorFromHttpClientError,
   vercelApiErrorFromResponse,
+  vercelApiErrorFromStatus,
 } from "./vercel-api-errors.ts";
 
 const TestLayer = Layer.merge(TestHttpServerLive(), FetchHttpClient.layer);
@@ -125,6 +126,65 @@ describe("vercelApiErrorFromResponse", () => {
       assert.deepStrictEqual(retryAfter(invalid), Option.none());
       assert.deepStrictEqual(retryAfter(missing), Option.none());
     }).pipe(Effect.provide(TestLayer)),
+  );
+});
+
+describe("vercelApiErrorFromStatus", () => {
+  const fromStatus = (status: number, headers: Record<string, string> = {}, now = 0) =>
+    vercelApiErrorFromStatus(
+      {
+        operation: "Test.op",
+        status,
+        message: "boom",
+        errorCode: Option.some("forbidden"),
+        headers: Headers.fromInput(headers),
+      },
+      now,
+    );
+
+  it.each([
+    { status: 400, tag: "ApiBadRequest" },
+    { status: 401, tag: "ApiUnauthorized" },
+    { status: 403, tag: "ApiForbidden" },
+    { status: 413, tag: "ApiPayloadTooLarge" },
+    { status: 429, tag: "ApiRateLimited" },
+    { status: 500, tag: "ApiServerError" },
+    { status: 599, tag: "ApiServerError" },
+    { status: 404, tag: "ApiUnexpectedResponse" },
+    { status: 600, tag: "ApiUnexpectedResponse" },
+  ])("maps $status to $tag", ({ status, tag }) => {
+    const error = fromStatus(status);
+    assert.strictEqual(error._tag, "VercelApiError");
+    assert.strictEqual(error.reason._tag, tag);
+    assert.strictEqual(error.reason.message, "boom");
+    assert.strictEqual(error.operation, "Test.op");
+  });
+
+  it("keeps the error code the caller read from the body", () => {
+    assert.deepStrictEqual(fromStatus(403).errorCode, Option.some("forbidden"));
+  });
+
+  it("resolves Retry-After against the given time", () => {
+    const retryAfter = (error: VercelApiError) =>
+      Predicate.isTagged(error.reason, "ApiRateLimited")
+        ? Option.map(error.reason.retryAfter, Duration.toMillis)
+        : Option.none();
+    const now = Date.parse("2025-01-01T00:00:00Z");
+    const date = { "Retry-After": "Wed, 01 Jan 2025 00:00:30 GMT" };
+    assert.deepStrictEqual(retryAfter(fromStatus(429, date, now)), Option.some(30_000));
+    assert.deepStrictEqual(retryAfter(fromStatus(429, date, now + 40_000)), Option.some(0));
+    assert.deepStrictEqual(retryAfter(fromStatus(429, { "Retry-After": "3" })), Option.some(3000));
+  });
+
+  it.effect("fails an Effect when yielded", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        Effect.gen(function* () {
+          return yield* fromStatus(401);
+        }),
+      );
+      assert.deepStrictEqual(exit, Exit.fail(fromStatus(401)));
+    }),
   );
 });
 

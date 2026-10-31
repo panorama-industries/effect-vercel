@@ -7,6 +7,7 @@ catalog:
   "@effect/platform-node": 4.0.6
   "@effect/vitest": 4.0.6
   "@types/node": 26.6.5
+  "@vercel/blob": 2.8.2
   "@vercel/queue": 0.10.0
   effect: 4.0.6
   "@effect/tsgo": 0.62.0

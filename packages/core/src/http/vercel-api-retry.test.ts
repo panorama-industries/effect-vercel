@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Duration, Effect, Exit, Fiber, Layer, Option, Ref, Schema } from "effect";
+import { Duration, Effect, Exit, Fiber, Layer, Option, Predicate, Ref, Schema } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/http";
 import { TestClock } from "effect/testing";
 
@@ -123,6 +123,80 @@ describe("vercelApiTransientRetry", () => {
       assert.strictEqual(yield* Fiber.join(fiber), "ok");
     }),
   );
+
+  describe("with isRetryable", () => {
+    const serverError = (status: number) =>
+      apiError(new ApiServerError({ message: "down", status }));
+    const rateLimited = apiError(
+      new ApiRateLimited({ message: "slow down", retryAfter: Option.some(Duration.seconds(10)) }),
+    );
+    const networkOrBadGateway = (error: unknown) =>
+      error instanceof VercelApiError &&
+      (Predicate.isTagged(error.reason, "ApiNetworkFailure") ||
+        (Predicate.isTagged(error.reason, "ApiServerError") && error.reason.status === 502));
+
+    it.effect("retries the failures it accepts", () =>
+      Effect.gen(function* () {
+        const { attempts, effect } = yield* failingTimes([networkFailure, serverError(502)]);
+        const exit = yield* runToEnd(
+          effect.pipe(Effect.retry(vercelApiTransientRetry({ isRetryable: networkOrBadGateway }))),
+        );
+        assert.deepStrictEqual(exit, Exit.succeed("ok"));
+        assert.strictEqual(yield* Ref.get(attempts), 3);
+      }),
+    );
+
+    it.effect.each([
+      { name: "ApiRateLimited", error: rateLimited },
+      { name: "another server error", error: serverError(500) },
+    ])("does not retry $name when it rejects it", ({ error }) =>
+      Effect.gen(function* () {
+        const { attempts, effect } = yield* failingTimes([error]);
+        const exit = yield* runToEnd(
+          effect.pipe(Effect.retry(vercelApiTransientRetry({ isRetryable: networkOrBadGateway }))),
+        );
+        assert.deepStrictEqual(exit, Exit.fail(error));
+        assert.strictEqual(yield* Ref.get(attempts), 1);
+      }),
+    );
+
+    it.effect("still waits the Retry-After delay of an accepted rate-limited call", () =>
+      Effect.gen(function* () {
+        const { attempts, effect } = yield* failingTimes([rateLimited]);
+        const fiber = yield* Effect.forkChild(
+          effect.pipe(
+            Effect.retry(
+              vercelApiTransientRetry({ isRetryable: () => true, baseDelay: "1 millis" }),
+            ),
+          ),
+        );
+        yield* TestClock.adjust("9 seconds");
+        assert.strictEqual(yield* Ref.get(attempts), 1);
+        yield* TestClock.adjust("1 second");
+        assert.strictEqual(yield* Fiber.join(fiber), "ok");
+      }),
+    );
+
+    it.effect("keeps the attempt limit", () =>
+      Effect.gen(function* () {
+        const { attempts, effect } = yield* failingTimes(
+          Array.from({ length: 20 }, () => networkFailure),
+        );
+        yield* runToEnd(
+          effect.pipe(
+            Effect.retry(
+              vercelApiTransientRetry({
+                maxAttempts: 11,
+                baseDelay: "1 second",
+                isRetryable: () => true,
+              }),
+            ),
+          ),
+        );
+        assert.strictEqual(yield* Ref.get(attempts), 11);
+      }),
+    );
+  });
 
   it.live("retries a 429 response end to end", () =>
     Effect.gen(function* () {

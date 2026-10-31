@@ -56,11 +56,67 @@ export const responseErrorMessage = Effect.fnUntraced(function* (
   return contentType.startsWith("text/") && trimmed.length > 0 ? trimmed : fallback;
 });
 
-const retryAfterOf = (response: HttpClientResponse.HttpClientResponse, now: number) =>
-  Headers.get(response.headers, "retry-after").pipe(
+/** A non-2xx response whose body the caller has already read. */
+export interface VercelApiErrorStatus {
+  /** Traced operation name stored in `VercelApiError.operation`, such as `QueueApi.send`. */
+  readonly operation: string;
+
+  /** HTTP status of the response. */
+  readonly status: number;
+
+  /** Human-readable message for the reason, usually read from the response body. */
+  readonly message: string;
+
+  /** Machine-readable error code found in the response header or body, if any. */
+  readonly errorCode: Option.Option<string>;
+
+  /** Response headers; `Retry-After` is read from them on 429. */
+  readonly headers: Headers.Headers;
+}
+
+const retryAfterOf = (headers: Headers.Headers, now: number) =>
+  Headers.get(headers, "retry-after").pipe(
     Option.flatMap((value) => Result.getSuccess(Headers.parseRetryAfter(value))),
     Option.map((retryAfter) => Headers.retryAfterDelay(retryAfter, now)),
   );
+
+/**
+ * Build the `VercelApiError` matching a non-2xx status, for callers that read the body themselves
+ * (for example to find a domain error code in JSON before falling back to `VercelApiError`).
+ *
+ * Maps 400, 401, 403, 413, 429 (with `Retry-After`) and 5xx to their `Api*` reasons and any other
+ * status to `ApiUnexpectedResponse`, exactly like {@link vercelApiErrorFromResponse}.
+ *
+ * @param now - Current time in epoch milliseconds (`Clock.currentTimeMillis`), used to turn an
+ *   HTTP-date `Retry-After` into a delay.
+ * @returns The error value; fail with it using `yield*` or `Effect.fail`.
+ */
+export const vercelApiErrorFromStatus = (
+  response: VercelApiErrorStatus,
+  now: number,
+): VercelApiError => {
+  const { message, status } = response;
+  const reason: VercelApiError["reason"] = Match.value(status).pipe(
+    Match.when(400, () => new ApiBadRequest({ message })),
+    Match.when(401, () => new ApiUnauthorized({ message })),
+    Match.when(403, () => new ApiForbidden({ message })),
+    Match.when(413, () => new ApiPayloadTooLarge({ message })),
+    Match.when(
+      429,
+      () => new ApiRateLimited({ message, retryAfter: retryAfterOf(response.headers, now) }),
+    ),
+    Match.when(
+      (code) => code >= 500 && code <= 599,
+      () => new ApiServerError({ message, status }),
+    ),
+    Match.orElse(() => new ApiUnexpectedResponse({ message, status })),
+  );
+  return new VercelApiError({
+    operation: response.operation,
+    errorCode: response.errorCode,
+    reason,
+  });
+};
 
 /**
  * Fail with the `VercelApiError` matching a non-2xx response.
@@ -75,27 +131,19 @@ export const vercelApiErrorFromResponse = Effect.fnUntraced(function* (
 ): Effect.fn.Return<never, VercelApiError> {
   const message = yield* responseErrorMessage(response);
   const now = yield* Clock.currentTimeMillis;
-  const status = response.status;
-  const reason: VercelApiError["reason"] = Match.value(status).pipe(
-    Match.when(400, () => new ApiBadRequest({ message })),
-    Match.when(401, () => new ApiUnauthorized({ message })),
-    Match.when(403, () => new ApiForbidden({ message })),
-    Match.when(413, () => new ApiPayloadTooLarge({ message })),
-    Match.when(429, () => new ApiRateLimited({ message, retryAfter: retryAfterOf(response, now) })),
-    Match.when(
-      (code) => code >= 500 && code <= 599,
-      () => new ApiServerError({ message, status }),
-    ),
-    Match.orElse(() => new ApiUnexpectedResponse({ message, status })),
+  return yield* vercelApiErrorFromStatus(
+    {
+      operation: options.operation,
+      status: response.status,
+      message,
+      errorCode:
+        options.errorCodeHeader === undefined
+          ? Option.none()
+          : Headers.get(response.headers, options.errorCodeHeader),
+      headers: response.headers,
+    },
+    now,
   );
-  return yield* new VercelApiError({
-    operation: options.operation,
-    errorCode:
-      options.errorCodeHeader === undefined
-        ? Option.none()
-        : Headers.get(response.headers, options.errorCodeHeader),
-    reason,
-  });
 });
 
 /**

@@ -12,8 +12,10 @@ export {
 export { type VercelApiClientOptions, withVercelApi } from "./http/with-vercel-api.ts";
 export {
   type VercelApiErrorOptions,
+  type VercelApiErrorStatus,
   vercelApiErrorFromHttpClientError,
   vercelApiErrorFromResponse,
+  vercelApiErrorFromStatus,
 } from "./http/vercel-api-errors.ts";
 export {
   type VercelApiTransientRetryOptions,
