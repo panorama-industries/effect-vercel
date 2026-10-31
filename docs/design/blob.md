@@ -1,6 +1,6 @@
 # Design: `effect-vercel-blob`
 
-Status: draft for review. Reference implementation: `@vercel/blob@2.8.2` (source in
+Reference implementation: `@vercel/blob@2.8.2` (source in
 `../effect-vercel-reference-repos/storage/packages/blob`). Target runtime: `effect@4.x`.
 
 Published as `@panorama-industries/effect-vercel-blob`; "blob" below. It depends on core
@@ -195,8 +195,8 @@ lets the body be read after the effect completes.
 | `get(pathnameOrUrl, options)` → `GetBlobResult`                          | `Found{ body, headers, blob }` \| `NotModified{ headers, blob }`; `BlobNotFound` on 404                                |
 | `list(options)` → `ListPage`                                             | `folders` is empty unless `mode: "folded"`                                                                             |
 | `listAll(options)` → `Stream<ListedBlob>`                                | follows the cursor                                                                                                     |
-| `del(pathnameOrUrl, { ifMatch? })`, `delMany(targets)`                   | missing blobs are not an error                                                                                         |
-| `copy(from, to, options)`, `rename(from, to, options)` → `PutBlobResult` |                                                                                                                        |
+| `del(pathnameOrUrl, { ifMatch? })`, `delMany(targets)`                   | missing blobs are not an error, except with `ifMatch` (`BlobPreconditionFailed`)                                       |
+| `copy(from, to, options)`, `rename(from, to, options)` → `PutBlobResult` | `copy` always replaces `to`; `rename` needs `allowOverwrite`. A missing source is `BlobNotFound`                       |
 | `createFolder(pathname, { access? })` → `CreateFolderResult`             | `access` defaults to `public`                                                                                          |
 | `createMultipartUpload(pathname, options)` → `MultipartUpload`           | the handle carries pathname, key, upload id and the write options, so it can be serialized and used by another process |
 | `uploadPart(upload, partNumber, body)` → `UploadedPart`                  |                                                                                                                        |
@@ -244,6 +244,10 @@ API URL.
 ## Deliberate differences from the SDK
 
 - `get` fails with `BlobNotFound` on 404 instead of returning `null`, matching `head`.
+- The store reports a missing key as `bad_request` with the message "The specified key does not
+  exist." instead of a code. The SDK throws a generic `BlobError`; we map it to `BlobNotFound` for a
+  missing `copy` or `rename` source and to `BlobPreconditionFailed` for `ifMatch` on a missing blob
+  (HTTP's `If-Match` semantics). Only that exact message is mapped; `pnpm test:live` checks it.
 - A request whose body is a one-shot stream is not retried (the SDK resends a consumed stream).
 - Credentials are chosen when the layer is built, not per call.
 - A read-write token from which no store id can be parsed is a `ConfigError`, not an empty
@@ -251,6 +255,24 @@ API URL.
 - Invalid input fails at construction (branded types, option unions) instead of throwing
   `BlobError` at call time.
 - `list` always returns `folders` (empty unless folded) instead of two result types.
+- Each operation reports only the domain errors its contract declares; any other domain code in an
+  error body (say `not_found` from `put`) becomes a `VercelApiError` keeping the code in
+  `errorCode`. For codes outside the table the reason comes from the HTTP status and keeps the
+  server's message, where the SDK uses its fixed "Unknown error" text.
+- Result URLs are `URL` objects, so their host is lower-cased (`storeid.public…`); the SDK returns
+  raw strings.
+- Automatic multipart completes with the parts sorted by part number; the SDK sends them in the
+  order they finished. Progress reports 0 % after creation and 100 % only after completion.
+- `issueSignedToken` with a `validUntil` that is not in the future fails locally with
+  `ApiBadRequest` and sends nothing.
+- An upload-completed callback's payload is decoded (`PutBlobResult`) before `onUploadCompleted`
+  runs; the SDK passes it on unchecked.
+- `BlobConfigLive` and `BlobClientLive` trim every variable, treat blank ones as absent, and reject
+  an invalid API URL, store id or `VERCEL_BLOB_RETRIES` with a `ConfigError`.
+- Blob requests carry no `traceparent`, for wire parity and to avoid CORS preflights in browsers.
+
+The differential suite (`test/differential/`) asserts every difference above that is observable on
+the wire or in outcomes; anything else it finds is a bug.
 
 ## Core additions
 
@@ -274,6 +296,12 @@ API URL.
   the test server's origin, which the SDK allows when `VERCEL_BLOB_API_URL` is set. Client tokens,
   presign payloads and callback verification are compared byte for byte at a fixed clock.
 - `scripts/sdk-drift.mjs`: diff the pinned SDK against a newer version.
+- Conformance (`test/live`, `pnpm test:live`): each scenario runs against real stores through
+  `BlobStoreLive` and against `TestBlobStore`, and the outcomes must match. Needs
+  `BLOB_READ_WRITE_TOKEN_PRIVATE` and `BLOB_READ_WRITE_TOKEN_PUBLIC` (one store of each access) in
+  `.env`; a store without a token is skipped, and `pnpm test` never runs it. This is the source for
+  server behavior the SDK does not show: overwrite rules, `contentDisposition`, `cacheControl`,
+  media type inference, store access and `ifMatch` on missing blobs.
 
 ## Build order
 

@@ -225,6 +225,23 @@ describe("blobErrorFromResponse", () => {
     assert.strictEqual(apiError(map(400, body("bad_request"))).reason.message, "Bad request");
   });
 
+  it("maps the missing-key bad_request to BlobNotFound or BlobPreconditionFailed", () => {
+    const missing = body("bad_request", "The specified key does not exist.");
+    const copy = map(400, missing, {
+      domainErrors: ["BlobPreconditionFailed", "BlobUploadRejected", "BlobNotFound"],
+    });
+    assert.deepStrictEqual(copy, new BlobNotFound({ locator: "folder/file.txt" }));
+    const write = map(400, missing, { domainErrors: ["BlobPreconditionFailed"] });
+    assert.instanceOf(write, BlobPreconditionFailed);
+
+    const undeclared = apiError(map(400, missing, { domainErrors: ["BlobStoreUnavailable"] }));
+    assert.instanceOf(undeclared.reason, ApiBadRequest);
+    const nearMiss = apiError(map(400, body("bad_request", "The specified key does not exist")));
+    assert.instanceOf(nearMiss.reason, ApiBadRequest);
+    const otherCode = map(400, body("unknown_error", "The specified key does not exist."));
+    assert.instanceOf(apiError(otherCode).reason, ApiBadRequest);
+  });
+
   it("maps rate_limited to ApiRateLimited with Retry-After", () => {
     const error = apiError(map(429, body("rate_limited"), { headers: { "retry-after": "5" } }));
     assert.instanceOf(error.reason, ApiRateLimited);

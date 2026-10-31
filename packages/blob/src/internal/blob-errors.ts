@@ -115,6 +115,12 @@ export const blobErrorCode = (body: string): BlobErrorCode => {
 
 const unknownErrorMessage = "Unknown error, please visit https://vercel.com/help.";
 
+/**
+ * The message the store sends with `bad_request`, instead of a dedicated code, when a key does not
+ * exist: the source of a copy or rename, or the blob an `ifMatch` write or delete targets.
+ */
+export const missingKeyMessage = "The specified key does not exist.";
+
 const domainError = (
   code: string,
   message: Option.Option<string>,
@@ -225,6 +231,10 @@ const apiReasonFor = (
  * any. A domain code not listed in `domainErrors` is reported as a `VercelApiError` for its status
  * instead, with that code, so an operation only surfaces the domain errors its contract declares.
  *
+ * Unlike the SDK, a `bad_request` with {@link missingKeyMessage} becomes `BlobNotFound` for an
+ * operation that reports it (a missing copy or rename source), and `BlobPreconditionFailed`
+ * otherwise (`ifMatch` on a missing blob, which HTTP treats as a failed precondition).
+ *
  * @param now - Current time in epoch milliseconds, to resolve an HTTP-date `Retry-After`.
  * @param domainErrors - Domain errors the operation reports; all of them by default.
  */
@@ -234,11 +244,18 @@ export const blobErrorFromResponse = <K extends BlobDomainErrorTag = BlobDomainE
   domainErrors?: ReadonlyArray<K>,
 ): BlobApiError<K> => {
   const { code, bodyCode, message } = blobErrorCode(response.body);
+  const reports = (tag: BlobDomainErrorTag) =>
+    domainErrors === undefined || (domainErrors as ReadonlyArray<string>).includes(tag);
+  if (code === "bad_request" && Option.getOrUndefined(message) === missingKeyMessage) {
+    if (reports("BlobNotFound")) {
+      return new BlobNotFound({ locator: response.locator }) as BlobApiError<K>;
+    }
+    if (reports("BlobPreconditionFailed")) {
+      return new BlobPreconditionFailed() as BlobApiError<K>;
+    }
+  }
   const domain = domainError(code, message, response.locator).pipe(
-    Option.filter(
-      (error) =>
-        domainErrors === undefined || (domainErrors as ReadonlyArray<string>).includes(error._tag),
-    ),
+    Option.filter((error) => reports(error._tag)),
   );
   if (Option.isSome(domain)) {
     return domain.value as Extract<BlobDomainError, { readonly _tag: K }>;

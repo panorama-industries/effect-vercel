@@ -264,8 +264,11 @@ export const ClientToken = Schema.String.check(Schema.isPattern(/^vercel_blob_cl
 /** A token that lets a browser upload one pathname directly. */
 export type ClientToken = typeof ClientToken.Type;
 
-/** Constraints a server places on a browser upload when it issues a client token. */
-export interface ClientTokenConstraints {
+/**
+ * Constraints a server places on a browser upload when it issues a client token. As for writes,
+ * `ifMatch` implies `allowOverwrite`.
+ */
+export type ClientTokenConstraints = OverwriteOptions & {
   /** Largest accepted file, at most 5 TB. */
   readonly maximumSizeInBytes?: number | undefined;
 
@@ -276,13 +279,10 @@ export interface ClientTokenConstraints {
   readonly validUntil?: DateTime.Utc | undefined;
 
   readonly addRandomSuffix?: boolean | undefined;
-  readonly allowOverwrite?: boolean | undefined;
 
   /** In seconds. */
   readonly cacheControlMaxAge?: number | undefined;
-
-  readonly ifMatch?: ETag | undefined;
-}
+};
 
 /** The blob store's notification that a browser upload finished. */
 export class UploadCompleted extends Schema.Class<UploadCompleted>(

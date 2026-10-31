@@ -1,10 +1,13 @@
-import { Config, ConfigProvider, Effect, Layer, Option, Redacted, Schema } from "effect";
+import type { Config } from "effect";
+
+import { Effect, Layer, Option, Redacted } from "effect";
 
 import type { BlobAccess, StoreId } from "../contracts/blob-domain.ts";
 
 import { BlobAuth, BlobConfig } from "../contracts/blob-config.ts";
+import { configError, env, requestEnv } from "../internal/env.ts";
 import { parseStoreId, storeIdFromReadWriteToken } from "../internal/store-id.ts";
-import { defaultApiUrl, defaultBlobBaseUrl } from "../internal/urls.ts";
+import { defaultBlobBaseUrl } from "../internal/urls.ts";
 
 /** Values that replace what {@link BlobConfigLive} reads from the environment. */
 export interface BlobConfigOptions {
@@ -39,40 +42,6 @@ export interface BlobConfigOptions {
   readonly callbackBaseUrl?: string | undefined;
 }
 
-const defaultApiVersion = "13";
-
-const defaultRetries = 10;
-
-const configError = (message: string) =>
-  new Config.ConfigError(new ConfigProvider.SourceError({ message }));
-
-/** A variable as the SDK's `readEnv` reads it: trimmed, and absent when blank. */
-const env = (name: string) =>
-  Config.option(Config.String(name)).pipe(
-    Config.map((value) =>
-      Option.filter(
-        Option.map(value, (value) => value.trim()),
-        (value) => value !== "",
-      ),
-    ),
-  );
-
-/** The first of several variables that is set, such as a name and its `NEXT_PUBLIC_` twin. */
-const firstEnv = (...names: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    for (const name of names) {
-      const value = yield* env(name);
-      if (Option.isSome(value)) return value;
-    }
-    return Option.none<string>();
-  });
-
-const decodeUrl = Schema.decodeUnknownOption(Schema.URLFromString);
-
-const decodeRetries = Schema.decodeUnknownOption(
-  Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
-);
-
 const noCredentials = configError(
   "No blob credentials found. Pass a `token` option, set `BLOB_READ_WRITE_TOKEN`, or use Vercel " +
     "OIDC with a `storeId` option or `BLOB_STORE_ID`.",
@@ -84,62 +53,7 @@ const invalidReadWriteToken = (source: string) =>
   );
 
 const resolveBlobConfig = Effect.fnUntraced(function* (options: BlobConfigOptions) {
-  const apiUrlInput =
-    options.apiUrl ??
-    Option.getOrElse(
-      yield* firstEnv("VERCEL_BLOB_API_URL", "NEXT_PUBLIC_VERCEL_BLOB_API_URL"),
-      () => defaultApiUrl,
-    );
-  const apiUrl = yield* Option.match(decodeUrl(String(apiUrlInput)), {
-    onNone: () =>
-      Effect.fail(
-        configError(`Invalid Blob API URL "${String(apiUrlInput)}": expected an absolute URL.`),
-      ),
-    onSome: Effect.succeed,
-  });
-
-  const apiVersion = Option.getOrElse(
-    yield* firstEnv(
-      "VERCEL_BLOB_API_VERSION_OVERRIDE",
-      "NEXT_PUBLIC_VERCEL_BLOB_API_VERSION_OVERRIDE",
-    ),
-    () => defaultApiVersion,
-  );
-
-  const retries =
-    options.retries ??
-    (yield* Option.match(yield* env("VERCEL_BLOB_RETRIES"), {
-      onNone: () => Effect.succeed(defaultRetries),
-      onSome: (value) =>
-        Option.match(decodeRetries(value), {
-          onNone: () =>
-            Effect.fail(
-              configError(
-                `Invalid VERCEL_BLOB_RETRIES "${value}": expected a non-negative integer.`,
-              ),
-            ),
-          onSome: Effect.succeed,
-        }),
-    }));
-  if (!Number.isInteger(retries) || retries < 0) {
-    return yield* Effect.fail(
-      configError(`Invalid retries ${retries}: expected a non-negative integer.`),
-    );
-  }
-
-  const sendContentLength = Option.contains(yield* env("VERCEL_BLOB_USE_X_CONTENT_LENGTH"), "1");
-
-  const proxyThroughAlternativeApi = yield* firstEnv(
-    "VERCEL_BLOB_PROXY_THROUGH_ALTERNATIVE_API",
-    "NEXT_PUBLIC_VERCEL_BLOB_PROXY_THROUGH_ALTERNATIVE_API",
-  );
-  const headers = {
-    ...Option.match(proxyThroughAlternativeApi, {
-      onNone: () => ({}),
-      onSome: (value) => ({ "x-proxy-through-alternative-api": value }),
-    }),
-    ...options.headers,
-  };
+  const { apiUrl, apiVersion, retries, sendContentLength, headers } = yield* requestEnv(options);
 
   const envReadWriteToken = Option.map(yield* env("BLOB_READ_WRITE_TOKEN"), (token) =>
     Redacted.make(token),

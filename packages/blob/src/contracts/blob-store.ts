@@ -1,5 +1,5 @@
 import type { OidcTokenUnavailable, VercelApiError } from "@panorama-industries/effect-vercel-core";
-import type { Array, Effect, Stream } from "effect";
+import type { Array, Duration, Effect, Stream } from "effect";
 
 import { Context, Schema } from "effect";
 
@@ -17,6 +17,7 @@ import type {
   ListPage,
   MultipartUpload,
   OnUploadProgress,
+  OverwriteOptions,
   PartNumber,
   PutBlobResult,
   UploadedPart,
@@ -90,7 +91,10 @@ export interface ImageOptimization {
 }
 
 /** Options for {@link BlobStore} `putImage`; the stored media type comes from the optimizer. */
-export type PutImageOptions = Omit<CreateBlobOptions, "contentType"> & {
+export type PutImageOptions = OverwriteOptions & {
+  readonly access: BlobAccess;
+  readonly addRandomSuffix?: boolean | undefined;
+  readonly cacheControlMaxAge?: Duration.Input | undefined;
   readonly optimizeImage: ImageOptimization;
   readonly onUploadProgress?: OnUploadProgress | undefined;
 };
@@ -140,7 +144,8 @@ export class BlobStore extends Context.Service<
   {
     /**
      * Store a blob at `pathname`. The store refuses an existing pathname unless `allowOverwrite`
-     * or `ifMatch` is set; a different ETag than `ifMatch` fails with `BlobPreconditionFailed`.
+     * or `ifMatch` is set; `ifMatch` fails with `BlobPreconditionFailed` when the blob has a
+     * different ETag or does not exist. `access` must be the store's.
      */
     readonly put: <E = never, R = never>(
       pathname: BlobPathname,
@@ -182,8 +187,9 @@ export class BlobStore extends Context.Service<
     readonly listAll: (options?: ListOptions) => Stream.Stream<ListedBlob, BlobRequestError>;
 
     /**
-     * Delete a blob. Deleting a missing blob succeeds; with `ifMatch`, a different ETag fails with
-     * `BlobPreconditionFailed`. CDN caches may serve the blob for up to a minute afterwards.
+     * Delete a blob. Deleting a missing blob succeeds; with `ifMatch`, a different ETag or a
+     * missing blob fails with `BlobPreconditionFailed`. CDN caches may serve the blob for up to a
+     * minute afterwards.
      */
     readonly del: (
       blob: BlobLocator,
@@ -197,7 +203,8 @@ export class BlobStore extends Context.Service<
 
     /**
      * Copy a blob to `to`. The copy does not inherit the source's media type or cache lifetime;
-     * pass them again. `ifMatch` is checked against the source.
+     * pass them again. `ifMatch` is checked against the source. The store replaces a blob at `to`
+     * even when `allowOverwrite` is false. A missing source fails with `BlobNotFound`.
      */
     readonly copy: (
       from: BlobLocator,
@@ -206,8 +213,9 @@ export class BlobStore extends Context.Service<
     ) => Effect.Effect<PutBlobResult, BlobWriteError | BlobNotFound>;
 
     /**
-     * Move a blob to `to`: copied, then the source deleted. If the delete fails the blob exists at
-     * both pathnames; retry with `allowOverwrite: true`.
+     * Move a blob to `to`: copied, then the source deleted. Unlike `copy`, an existing `to` is
+     * refused unless `allowOverwrite` is set, so if the delete fails the blob exists at both
+     * pathnames; retry with `allowOverwrite: true`. A missing source fails with `BlobNotFound`.
      */
     readonly rename: (
       from: BlobLocator,
@@ -215,7 +223,10 @@ export class BlobStore extends Context.Service<
       options: CreateBlobOptions,
     ) => Effect.Effect<PutBlobResult, BlobWriteError | BlobNotFound>;
 
-    /** Create an empty folder marker; a trailing `/` is added when missing. */
+    /**
+     * Create an empty folder marker; a trailing `/` is added when missing. An existing folder is
+     * refused. `access` defaults to `public`, which a private store refuses.
+     */
     readonly createFolder: (
       pathname: BlobPathname,
       options?: { readonly access?: BlobAccess | undefined },

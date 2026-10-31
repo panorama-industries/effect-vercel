@@ -11,3 +11,8 @@ export {
 } from "./implementation/blob-config-live.ts";
 export { storeIdFromDelegationToken } from "./internal/store-id.ts";
 export { downloadUrl } from "./internal/urls.ts";
+export { BlobStoreLive } from "./implementation/blob-store-live.ts";
+export { BlobSignedUrlsLive } from "./implementation/blob-signed-urls-live.ts";
+export { BlobUploadsLive } from "./implementation/blob-uploads-live.ts";
+export { ClientTokenPayload, getPayloadFromClientToken } from "./internal/client-token.ts";
+export { BlobLive } from "./implementation/blob-live.ts";

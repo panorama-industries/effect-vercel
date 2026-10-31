@@ -26,15 +26,15 @@ export interface UploadCompletedCallback {
 }
 
 /** Everything a client token encodes. */
-export interface ClientTokenOptions extends ClientTokenConstraints {
+export type ClientTokenOptions = ClientTokenConstraints & {
   /** The only pathname the token may upload to. */
   readonly pathname: string;
 
   readonly onUploadCompleted?: UploadCompletedCallback | undefined;
-}
+};
 
 /** What an upload route allows for one browser upload; returned by `onBeforeGenerateToken`. */
-export interface UploadAuthorization extends ClientTokenConstraints {
+export type UploadAuthorization = ClientTokenConstraints & {
   /** Passed to `onUploadCompleted`; defaults to the browser's `clientPayload`. */
   readonly tokenPayload?: string | undefined;
 
@@ -44,7 +44,7 @@ export interface UploadAuthorization extends ClientTokenConstraints {
    * path. Never taken from the browser.
    */
   readonly callbackUrl?: string | undefined;
-}
+};
 
 /** Hooks of a client-token upload route. */
 export interface UploadHandlerOptions<E, R, E2, R2> {
