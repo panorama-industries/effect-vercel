@@ -1,7 +1,7 @@
 {
   "$schema": "../../.vscode/schemas/package.schema.json",
   "name": "@panorama-industries/effect-vercel-blob",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Effect-native client for Vercel Blob: uploads, downloads, listing, multipart, signed URLs and browser uploads.",
   "keywords": [
     "blob",
