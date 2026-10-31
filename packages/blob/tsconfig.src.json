@@ -1,0 +1,16 @@
+{
+  "$schema": "../../.vscode/schemas/tsconfig.schema.json",
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../core/tsconfig.src.json"
+    }
+  ],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "build/tsbuildinfo/src.tsbuildinfo"
+  }
+}

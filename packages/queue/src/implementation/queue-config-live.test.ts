@@ -19,6 +19,9 @@ const production: SystemEnv = {
   projectId: Option.none(),
   target: Option.some("production"),
   url: Option.none(),
+  branchUrl: Option.none(),
+  projectProductionUrl: Option.none(),
+  isVercel: true,
   isDevelopment: false,
   cliVersion: Option.none(),
 };
@@ -28,6 +31,7 @@ const development: SystemEnv = {
   region: Option.none(),
   deploymentId: Option.none(),
   target: Option.some("development"),
+  isVercel: false,
   isDevelopment: true,
   cliVersion: Option.some("59.26.0"),
 };

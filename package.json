@@ -24,6 +24,7 @@
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run",
+    "test:live": "vitest run --config packages/blob/vitest.live.config.ts",
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",

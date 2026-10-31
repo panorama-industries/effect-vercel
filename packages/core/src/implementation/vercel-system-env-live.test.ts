@@ -23,7 +23,10 @@ describe("VercelSystemEnvLive", () => {
         VERCEL_DEPLOYMENT_ID: "dpl_123",
         VERCEL_PROJECT_ID: "prj_456",
         VERCEL_ENV: "preview",
-        VERCEL_URL: "my-app-git-main.vercel.app",
+        VERCEL_URL: "my-app-abc123.vercel.app",
+        VERCEL_BRANCH_URL: "my-app-git-main.vercel.app",
+        VERCEL_PROJECT_PRODUCTION_URL: "my-app.com",
+        VERCEL: "1",
         NODE_ENV: "production",
         VERCEL_CLI_VERSION: "48.1.0",
       });
@@ -31,7 +34,10 @@ describe("VercelSystemEnvLive", () => {
       assert.deepStrictEqual(env.deploymentId, Option.some("dpl_123" as never));
       assert.deepStrictEqual(env.projectId, Option.some("prj_456" as never));
       assert.deepStrictEqual(env.target, Option.some("preview" as const));
-      assert.deepStrictEqual(env.url, Option.some("my-app-git-main.vercel.app"));
+      assert.deepStrictEqual(env.url, Option.some("my-app-abc123.vercel.app"));
+      assert.deepStrictEqual(env.branchUrl, Option.some("my-app-git-main.vercel.app"));
+      assert.deepStrictEqual(env.projectProductionUrl, Option.some("my-app.com"));
+      assert.isTrue(env.isVercel);
       assert.isFalse(env.isDevelopment);
       assert.deepStrictEqual(env.cliVersion, Option.some("48.1.0"));
     }),
@@ -45,16 +51,35 @@ describe("VercelSystemEnvLive", () => {
       assert.isTrue(Option.isNone(env.projectId));
       assert.isTrue(Option.isNone(env.target));
       assert.isTrue(Option.isNone(env.url));
+      assert.isTrue(Option.isNone(env.branchUrl));
+      assert.isTrue(Option.isNone(env.projectProductionUrl));
       assert.isTrue(Option.isNone(env.cliVersion));
+      assert.isFalse(env.isVercel);
       assert.isFalse(env.isDevelopment);
     }),
   );
 
   it.effect("treats empty variables as absent", () =>
     Effect.gen(function* () {
-      const env = yield* systemEnv({ VERCEL_DEPLOYMENT_ID: "", VERCEL_URL: "" });
+      const env = yield* systemEnv({
+        VERCEL_DEPLOYMENT_ID: "",
+        VERCEL_URL: "",
+        VERCEL_BRANCH_URL: "",
+        VERCEL_PROJECT_PRODUCTION_URL: "",
+        VERCEL: "",
+      });
       assert.isTrue(Option.isNone(env.deploymentId));
       assert.isTrue(Option.isNone(env.url));
+      assert.isTrue(Option.isNone(env.branchUrl));
+      assert.isTrue(Option.isNone(env.projectProductionUrl));
+      assert.isFalse(env.isVercel);
+    }),
+  );
+
+  it.effect.each(["0", "true", "yes"])("does not treat VERCEL=%s as running on Vercel", (value) =>
+    Effect.gen(function* () {
+      const env = yield* systemEnv({ VERCEL: value });
+      assert.isFalse(env.isVercel);
     }),
   );
 

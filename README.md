@@ -8,6 +8,7 @@ Effect-native SDKs for Vercel services.
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | [`@panorama-industries/effect-vercel-core`](packages/core)   | Shared building blocks: environment, OIDC credentials, API client, errors and test utilities. |
 | [`@panorama-industries/effect-vercel-queue`](packages/queue) | Client for Vercel Queues: typed topics, producers, push and poll consumers.                   |
+| [`@panorama-industries/effect-vercel-blob`](packages/blob)   | Client for Vercel Blob: uploads, downloads, multipart, signed URLs and browser uploads.       |
 
 ## Requirements
 

@@ -28,6 +28,18 @@ export class VercelSystemEnv extends Context.Service<
     /** Deployment host name without a scheme (`VERCEL_URL`). */
     readonly url: Option.Option<string>;
 
+    /** Host name of the Git branch's preview deployment, without a scheme (`VERCEL_BRANCH_URL`). */
+    readonly branchUrl: Option.Option<string>;
+
+    /**
+     * Host name of the project's production domain, without a scheme
+     * (`VERCEL_PROJECT_PRODUCTION_URL`). Vercel also sets it in preview deployments.
+     */
+    readonly projectProductionUrl: Option.Option<string>;
+
+    /** True when the code runs on Vercel (`VERCEL` is `1`). */
+    readonly isVercel: boolean;
+
     /** True when `NODE_ENV` is `development`, which enables local-development behavior. */
     readonly isDevelopment: boolean;
 

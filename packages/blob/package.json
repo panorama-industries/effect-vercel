@@ -1,0 +1,68 @@
+{
+  "$schema": "../../.vscode/schemas/package.schema.json",
+  "name": "@panorama-industries/effect-vercel-blob",
+  "version": "0.1.0",
+  "description": "Effect-native client for Vercel Blob: uploads, downloads, listing, multipart, signed URLs and browser uploads.",
+  "keywords": [
+    "blob",
+    "effect",
+    "sdk",
+    "storage",
+    "typescript",
+    "vercel",
+    "vercel-blob"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Santiago Galán",
+    "email": "santiago@panorama.industries",
+    "url": "https://sgalanb.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panorama-industries/effect-vercel.git",
+    "directory": "packages/blob"
+  },
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "effect-vercel-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "effect-vercel-source": "./src/client.ts",
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./testing": {
+      "effect-vercel-source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@panorama-industries/effect-vercel-core": "workspace:^"
+  },
+  "devDependencies": {
+    "@vercel/blob": "catalog:",
+    "effect": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.6"
+  }
+}

@@ -18,6 +18,9 @@ export const VercelSystemEnvLive = Layer.effect(
       projectId: Config.option(Config.schema(ProjectId, "VERCEL_PROJECT_ID")),
       target: Config.option(Config.schema(VercelTarget, "VERCEL_ENV")),
       url: Config.option(Config.String("VERCEL_URL")),
+      branchUrl: Config.option(Config.String("VERCEL_BRANCH_URL")),
+      projectProductionUrl: Config.option(Config.String("VERCEL_PROJECT_PRODUCTION_URL")),
+      vercel: Config.option(Config.String("VERCEL")),
       nodeEnv: Config.option(Config.String("NODE_ENV")),
       cliVersion: Config.option(Config.String("VERCEL_CLI_VERSION")),
     });
@@ -27,6 +30,9 @@ export const VercelSystemEnvLive = Layer.effect(
       projectId: env.projectId,
       target: env.target,
       url: env.url,
+      branchUrl: env.branchUrl,
+      projectProductionUrl: env.projectProductionUrl,
+      isVercel: Option.contains(env.vercel, "1"),
       isDevelopment: Option.contains(env.nodeEnv, "development"),
       cliVersion: env.cliVersion,
     });

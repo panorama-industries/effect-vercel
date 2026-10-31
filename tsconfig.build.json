@@ -3,6 +3,7 @@
   "files": [],
   "references": [
     { "path": "packages/core/tsconfig.src.json" },
-    { "path": "packages/queue/tsconfig.src.json" }
+    { "path": "packages/queue/tsconfig.src.json" },
+    { "path": "packages/blob/tsconfig.src.json" }
   ]
 }
