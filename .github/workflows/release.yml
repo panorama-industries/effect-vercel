@@ -1,6 +1,8 @@
 # npm trusted publishing trusts one workflow file per package, so releases and snapshots both
-# publish from this file. pnpm publishes with OIDC first and falls back to the optional `NPM_TOKEN`
-# secret, which is only needed before trusted publishing is configured on npm.
+# publish from this file with OIDC. It can only be configured on a package that already exists, so
+# a new package is first bootstrapped locally with `pnpm bootstrap:npm`; the check step below stops
+# the run before anything is published if one is missing. pnpm falls back to the optional
+# `NPM_TOKEN` secret when OIDC is unavailable.
 #
 # - Push to main: open or update the "Version Packages" PR; once it is merged, publish to npm with
 #   the `latest` tag, push git tags and create GitHub releases.
@@ -33,6 +35,7 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - run: node scripts/bootstrap-npm.mjs --check
       - uses: changesets/action@v2.1.2
         with:
           version-script: pnpm run version
@@ -55,6 +58,7 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - run: node scripts/bootstrap-npm.mjs --check
       - run: pnpm run release:snapshot
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

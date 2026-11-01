@@ -36,6 +36,18 @@ published from GitHub Actions with npm trusted publishing.
 
 3. Merging the Version Packages PR publishes to npm, tags the release and creates GitHub releases.
 
+A new package must exist on npm before trusted publishing can be configured for it. Before its
+first release, run this once from your machine; it publishes a `0.0.0` placeholder and trusts the
+Release workflow, with no tokens to create or store:
+
+```bash
+pnpm bootstrap:npm
+```
+
+It runs `npm login` if you are not logged in.
+
+The Release workflow fails before publishing anything while a package is missing from npm.
+
 To try unreleased changes, run the **Release** workflow manually on a branch with changesets. It
 publishes `x.y.z-snapshot-<datetime>` under the `snapshot` dist-tag:
 

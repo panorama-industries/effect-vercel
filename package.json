@@ -30,6 +30,7 @@
     "format:check": "oxfmt --check",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "check:packages": "pnpm build && pnpm -r exec publint --strict",
+    "bootstrap:npm": "node scripts/bootstrap-npm.mjs",
     "changeset": "changeset",
     "version": "changeset version && node scripts/sync-versions.mjs && oxfmt",
     "release": "pnpm build && changeset publish",
