@@ -25,7 +25,8 @@ Non-goals for v1:
   get coarse progress (0 % and 100 % for a single upload, one event per finished multipart part).
   An XHR `HttpClient` and browser-mode tests are v2.
 - Per-call credentials (`token`, `oidcToken`, `storeId` options). Credentials come from
-  `BlobConfig`; override them by providing another `blobConfigLayer({...})`. Browser calls take
+  `BlobConfig`; override them with `blobLayer({...})` / `blobLayerConfig({...})`, or by providing
+  another `blobConfigLayer({...})` to the individual layers. Browser calls take
   their client token or presigned payload explicitly because those are per upload by nature.
 
 ## Package layout
@@ -120,6 +121,12 @@ order: explicit `token` option, then OIDC when a store id is known (`storeId` op
 unavailable and a read-write token exists, the request uses the read-write token and its store id,
 exactly like the SDK's fall-through. Store ids come from read-write tokens
 (`vercel_blob_rw_<storeId>_…`) and client tokens (`vercel_blob_client_<storeId>_…`).
+
+`blobLayer(options)` merges `BlobStoreLive`, `BlobSignedUrlsLive` and `BlobUploadsLive` over
+`blobConfigLayer(options)`, `VercelOidcLive` and `VercelSystemEnvLive`, leaving only `HttpClient`,
+so applications need not depend on core. `blobLayerConfig` takes the same options as
+`Config.Wrap<BlobConfigOptions>`, following Effect's `layer` / `layerConfig` pairs; `BlobLive` is
+`blobLayer()`.
 
 On Vercel functions, build the layers once at module scope (`ManagedRuntime` or
 `HttpRouter.toWebHandler`) so warm Fluid instances reuse them across requests, including concurrent
