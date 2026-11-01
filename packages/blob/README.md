@@ -12,3 +12,24 @@ pnpm add @panorama-industries/effect-vercel-blob effect
 
 - `effect` `^4.0.6` (peer dependency)
 - ESM only
+
+## Usage
+
+```ts
+import { BlobStore, blobLayer, BlobLive } from "@panorama-industries/effect-vercel-blob";
+import { Effect, Layer } from "effect";
+import { FetchHttpClient } from "effect/http";
+
+// From the environment: BLOB_READ_WRITE_TOKEN, or Vercel OIDC with BLOB_STORE_ID.
+const Blob = BlobLive.pipe(Layer.provide(FetchHttpClient.layer));
+
+// Or with explicit values, which take precedence over the environment.
+const BlobWithToken = blobLayer({ token: "vercel_blob_rw_…" }).pipe(
+  Layer.provide(FetchHttpClient.layer),
+);
+
+const program = Effect.gen(function* () {
+  const blob = yield* BlobStore;
+  return yield* blob.list();
+}).pipe(Effect.provide(Blob));
+```
