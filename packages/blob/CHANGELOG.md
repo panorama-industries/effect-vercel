@@ -1,5 +1,16 @@
 # @panorama-industries/effect-vercel-blob
 
+## 0.3.0
+
+### Minor Changes
+
+- [#4](https://github.com/panorama-industries/effect-vercel/pull/4) [`d63e0ea`](https://github.com/panorama-industries/effect-vercel/commit/d63e0ea275077edc86325a72d3c9fb6693927a3f) Thanks [@sgalanb](https://github.com/sgalanb)! - New `blobLayer(options)` and `blobLayerConfig(options)`: the store, signed URLs and uploads with configuration overrides and the core layers (`VercelOidcLive`, `VercelSystemEnvLive`) already provided, so only an `HttpClient` is left. `blobLayerConfig` takes `Config.Wrap` options, e.g. `{ token: Config.Redacted("MY_TOKEN") }`. `BlobLive` is now `blobLayer()`.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @panorama-industries/effect-vercel-core@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

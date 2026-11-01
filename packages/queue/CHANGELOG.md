@@ -1,5 +1,12 @@
 # @panorama-industries/effect-vercel-queue
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @panorama-industries/effect-vercel-core@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
